@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NontongYuk - Streaming Film & Series Gratis</title>
+  <meta name="description" content="NontongYuk - Nonton film dan series gratis dengan tampilan ala Netflix.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lilita+One&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <nav class="navbar" id="navbar">
+    <div class="navbar-left">
+      <a href="#top" class="logo" aria-label="NontongYuk">Nontong<b>Yuk</b></a>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="#beranda" class="nav-link active" data-filter="all">Beranda</a></li>
+        <li><a href="#" class="nav-link" data-filter="movie">Film</a></li>
+        <li><a href="#" class="nav-link" data-filter="tv">Series</a></li>
+      </ul>
+    </div>
+    <div class="navbar-right">
+      <div class="search-box" id="searchBox">
+        <input type="text" id="searchInput" placeholder="Cari judul..." autocomplete="off" aria-label="Cari judul">
+        <button id="searchClear" aria-label="Hapus pencarian">&times;</button>
+      </div>
+      <button class="btn-search" id="btnSearch" aria-label="Buka pencarian">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+      </button>
+      <button class="btn-menu" id="btnMenu" aria-label="Menu">
+        <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M3 6h18v2H3zM3 11h18v2H3zM3 16h18v2H3z"/></svg>
+      </button>
+      <div class="profile">
+        <svg viewBox="0 0 24 24" width="32" height="32"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2a7.2 7.2 0 01-6-3.22c.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08a7.2 7.2 0 01-6 3.22z"/></svg>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero" id="beranda">
+    <div class="hero-backdrop" id="heroBackdrop"></div>
+    <div class="hero-shade-bottom"></div>
+    <div class="hero-content" id="heroContent"></div>
+    <div class="hero-dots" id="heroDots"></div>
+  </section>
+
+  <!-- MAIN -->
+  <main class="main content" id="mainContent">
+
+    <!-- ROWS (dijadikan via JS) -->
+
+    <!-- SEARCH RESULTS -->
+    <section class="search-section hidden" id="searchSection">
+      <div class="row-header">
+        <h2 class="row-title" id="searchTitle">Hasil Pencarian</h2>
+        <button class="btn-ghost" id="btnBackHome">&larr; Kembali ke Beranda</button>
+      </div>
+      <div class="search-grid hidden" id="searchGrid"></div>
+      <div class="loader hidden" id="searchLoader"></div>
+      <div class="empty-state hidden" id="searchEmpty">
+        <p>Tidak ada hasil. Coba kata kunci yang lain, ya.</p>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p><b>NontongYuk</b> &copy; 2026 — Demo streaming menggunakan <b>SuperEmbed</b>.</p>
+      <p>Semua konten dimiliki oleh pemegang haknya masing-masing.</p>
+    </footer>
+  </main>
+
+  <!-- MOVIE INFO / PLAY MODAL -->
+  <div class="modal-backdrop hidden" id="modalBackdrop"></div>
+  <div class="modal hidden" id="modal" role="dialog" aria-modal="true" aria-label="Pemutar video">
+    <button class="modal-close" id="modalClose" aria-label="Tutup">&times;</button>
+    <div class="modal-body">
+      <div class="modal-info">
+        <h2 id="modalTitle">Judul</h2>
+        <div class="modal-meta" id="modalMeta"></div>
+        <p class="modal-desc" id="modalDesc"></p>
+        <div class="modal-toolbar">
+          <label class="src-label">Sumber
+            <select id="sourceSelect" aria-label="Pilih sumber player">
+              <option value="vidsrc">Vidsrc</option>
+              <option value="multiembed">MultiEmbed</option>
+              <option value="embed2">2Embed</option>
+              <option value="vsembed">Vidsrc Backup</option>
+            </select>
+          </label>
+          <button class="btn-ghost" id="btnFullscreen">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+            <span id="btnFullscreenText">Layar Penuh</span>
+          </button>
+        </div>
+        <div class="episode-picker hidden" id="episodePicker">
+          <label>Musim
+            <select id="seasonSelect"></select>
+          </label>
+          <label>Episode
+            <select id="episodeSelect"></select>
+          </label>
+          <button class="btn-play" id="btnPlayEpisode">
+            <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M8 5v14l11-7z"/></svg> Putar
+          </button>
+        </div>
+      </div>
+      <div class="modal-player-wrap">
+        <div class="modal-player" id="modalPlayer"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
