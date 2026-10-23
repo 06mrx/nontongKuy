@@ -135,8 +135,7 @@
         const OS_PASSWORD = 'Hackermrx';  // Wajib untuk download
         const OS_USER_AGENT = 'TempPlayer v1.0';      // Bebas, tapi wajib ada
         
-        // Proxy CORS (Opsional, tapi sering dibutuhkan jika fetch dari browser langsung ke OpenSubtitles diblokir)
-        // Jika error CORS, gunakan: 'https://corsproxy.io/?' + encodeURIComponent(url)
+        // Proxy CORS (kosongkan jika di-proxy via Netlify Function / langsung dari browser)
         const CORS_PROXY = ''; 
 
         const PROVIDERS = {
