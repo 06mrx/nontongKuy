@@ -30,16 +30,17 @@ body {
 
 .hidden { display: none !important; }
 
-/* ---------- NAVBAR ---------- */
+/* ---------- NAVBAR (3 kolom: kiri | cari di tengah | kanan) ---------- */
 .navbar {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 100;
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr minmax(320px, 560px) 1fr;
   align-items: center;
-  justify-content: space-between;
+  gap: 16px;
   padding: 0 4%;
   height: 68px;
   background: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent);
@@ -55,6 +56,15 @@ body {
   display: flex;
   align-items: center;
   gap: 22px;
+}
+
+.navbar-left  { justify-self: start; }
+.navbar-right { justify-self: end; gap: 14px; }
+
+.navbar-center {
+  display: flex;
+  justify-content: center;
+  width: 100%;
 }
 
 .logo {
@@ -89,10 +99,6 @@ body {
 
 .nav-link:hover, .nav-link.active { color: var(--text); }
 
-.navbar-right {
-  gap: 14px;
-}
-
 .btn-search, .btn-menu {
   background: none;
   border: none;
@@ -103,54 +109,79 @@ body {
   padding: 6px;
 }
 
+/* Ikon cari lama tidak dipakai (tetap ada di DOM agar app.js tidak error) */
+.btn-search { display: none; }
+
 .profile {
   display: flex;
   align-items: center;
   color: var(--text);
 }
 
+/* ---------- SEARCH BOX (selalu terlihat, di tengah) ---------- */
 .search-box {
   position: relative;
   display: flex;
   align-items: center;
-  transition: all 0.3s ease;
+  width: 100%;
+  max-width: 560px;
+  height: 52px;
+  padding: 0 14px;
+  background: rgba(0, 0, 0, 0.65);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+
+.search-box .search-icon {
+  flex: 0 0 auto;
+  color: #fff;
+  opacity: 0.85;
+  margin-right: 10px;
 }
 
 .search-box input {
-  background: var(--bg);
-  border: 1px solid transparent;
-  border-radius: 4px;
-  color: var(--text);
-  padding: 7px 30px 7px 14px;
-  width: 0;
-  opacity: 0;
-  transition: all 0.35s ease;
-  font-size: 14px;
-  outline: none;
-}
-
-.search-box.open input {
-  width: 220px;
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  border-radius: 0;
+  color: #fff;
+  font-size: 18px;
+  font-family: inherit;
+  padding: 0;
   opacity: 1;
-  border-color: var(--muted);
+  -webkit-appearance: none;
+  appearance: none;
 }
 
-.search-box input:focus { border-color: var(--text); }
+.search-box input::placeholder { color: rgba(255, 255, 255, 0.6); }
+.search-box input::-webkit-search-cancel-button { display: none; }
 
+/* Fokus sangat jelas untuk remote TV */
+.search-box:focus-within {
+  border-color: #fff;
+  background: rgba(0, 0, 0, 0.92);
+  box-shadow: 0 0 0 4px var(--accent);
+}
+
+/* Tombol hapus: hanya tampil kalau ada teks */
 #searchClear {
-  position: absolute;
-  right: 6px;
-  top: 50%;
-  transform: translateY(-50%);
+  display: none;
+  flex: 0 0 auto;
   background: none;
   border: none;
-  color: var(--muted);
-  font-size: 18px;
+  color: #fff;
+  font-size: 30px;
+  line-height: 1;
   cursor: pointer;
-  display: none;
+  padding: 0 4px;
 }
 
-.search-box.open #searchClear { display: block; }
+.search-box input:not(:placeholder-shown) ~ #searchClear { display: block; }
 
 .btn-menu { display: none; }
 
@@ -522,7 +553,7 @@ body {
   z-index: 2;
 }
 
-/* ---------- SEARCH ---------- */
+/* ---------- SEARCH RESULTS ---------- */
 .search-section {
   padding-top: 96px;
 }
@@ -565,6 +596,26 @@ body {
   color: var(--muted);
   font-size: 16px;
   padding: 60px 20px;
+}
+
+/* ---------- FOKUS REMOTE / KEYBOARD (TV) ---------- */
+.card:focus-visible,
+.search-card:focus-visible {
+  outline: 4px solid #fff;
+  outline-offset: 2px;
+  transform: scale(1.12);
+  z-index: 10;
+}
+
+.card:focus-visible .card-info,
+.card:focus-visible .card-type { opacity: 1; translate: 0 0; }
+
+.btn-play:focus-visible,
+.btn-info:focus-visible,
+.btn-ghost:focus-visible,
+.nav-link:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
 }
 
 /* ---------- MODAL ---------- */
@@ -791,13 +842,22 @@ body {
 
 .footer b { color: var(--accent); }
 
+/* ---------- TV / LAYAR BESAR ---------- */
+@media (min-width: 1280px) {
+  .navbar { height: 84px; grid-template-columns: 1fr minmax(420px, 680px) 1fr; }
+  .search-box { height: 60px; max-width: 680px; }
+  .search-box input { font-size: 22px; }
+  .nav-link { font-size: 17px; }
+  .search-section { padding-top: 112px; }
+}
+
 /* ---------- RESPONSIVE ---------- */
 @media (max-width: 900px) {
   .btn-menu { display: flex; }
 
   .nav-links {
     position: absolute;
-    top: 68px;
+    top: 100%;
     left: 0;
     right: 0;
     flex-direction: column;
@@ -815,13 +875,33 @@ body {
     opacity: 1;
     pointer-events: auto;
   }
+}
 
-  .search-box.open input { width: 160px; }
+/* HP: kolom cari pindah ke baris kedua di bawah logo */
+@media (max-width: 760px) {
+  .navbar {
+    height: auto;
+    padding-top: 8px;
+    padding-bottom: 10px;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "left right"
+      "center center";
+    row-gap: 8px;
+    background: var(--bg);
+  }
+
+  .navbar-left   { grid-area: left; }
+  .navbar-right  { grid-area: right; }
+  .navbar-center { grid-area: center; }
+
+  .search-box { max-width: none; height: 44px; }
+  .search-box input { font-size: 16px; }
+
+  .search-section { padding-top: 130px; }
 }
 
 @media (max-width: 640px) {
-  .search-box { display: none; }
-
   .card { width: 138px; }
 
   .modal-info h2 { font-size: 22px; }
