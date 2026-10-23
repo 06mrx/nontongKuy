@@ -18,7 +18,7 @@
     heroIndex: 0,
     heroTimer: null,
     currentOpen: null,
-    source: 'multiembed',
+    source: 'embed2',
   };
 
   /* ---------------- helpers ---------------- */
@@ -274,15 +274,12 @@
   }
 
   /* ---------------- HERO ---------------- */
-  function initHero(heroList) {
+  function initHero() {
     const content = $('#heroContent');
     const dotsWrap = $('#heroDots');
     const backdrop = $('#heroBackdrop');
-    const list = Array.isArray(heroList) && heroList.length ? heroList : FEATURED;
 
-    dotsWrap.innerHTML = '';
-
-    list.forEach((it, i) => {
+    FEATURED.forEach((it, i) => {
       const dot = document.createElement('button');
       dot.className = 'hero-dot' + (i === 0 ? ' active' : '');
       dot.setAttribute('aria-label', 'Tampilkan ' + it.title);
@@ -292,22 +289,18 @@
 
     function showHero(i) {
       state.heroIndex = i;
-      const it = list[i];
-      if (!it) return;
-      const bg = backdropUrl(it);
-      if (bg) backdrop.style.backgroundImage = 'url("' + bg + '")';
-      else backdrop.style.backgroundImage = 'none';
+      const it = FEATURED[i];
+      backdrop.style.backgroundImage = 'url("' + backdropUrl(it) + '")';
       content.innerHTML =
-        '<span class="hero-badge">Hits Belakangan Ini</span>' +
+        '<span class="hero-badge">' + (it.type === 'tv' ? 'Series Original' : 'Pilihan NontongYuk') + '</span>' +
         '<h1 class="hero-title">' + esc(it.title) + '</h1>' +
         '<div class="hero-meta">' +
-        '<span class="match">' + (it.match || 90) + '% Cocok</span>' +
-        (it.year ? '<span>' + esc(it.year) + '</span>' : '') +
-        (it.genre ? '<span>' + esc(it.genre) + '</span>' : '') +
-        (it.type === 'tv' && it.seasons ? '<span>' + it.seasons + ' Musim</span>' : '') +
+        '<span class="match">' + it.match + '% Cocok</span>' +
+        '<span>' + esc(it.year) + '</span>' +
+        '<span>' + esc(it.genre) + '</span>' +
         '<span class="hd">HD</span>' +
         '</div>' +
-        '<p class="hero-desc">' + esc(it.desc || '') + '</p>' +
+        '<p class="hero-desc">' + esc(it.desc) + '</p>' +
         '<div class="hero-buttons">' +
         '<button class="btn-play" id="heroPlay">' +
         '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>Putar</button>' +
@@ -315,15 +308,13 @@
         '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>Info</button>' +
         '</div>';
 
-      const btnPlay = $('#heroPlay');
-      const btnInfo = $('#heroInfo');
-      if (btnPlay) btnPlay.addEventListener('click', () => openPlayer(it));
-      if (btnInfo) btnInfo.addEventListener('click', () => openPlayer(it, true));
+      $('#heroPlay').addEventListener('click', () => openPlayer(it));
+      $('#heroInfo').addEventListener('click', () => openPlayer(it, true));
 
       $$('.hero-dot').forEach((d, idx) => d.classList.toggle('active', idx === state.heroIndex));
 
       if (state.heroTimer) clearInterval(state.heroTimer);
-      state.heroTimer = setInterval(() => showHero((state.heroIndex + 1) % list.length), 6000);
+      state.heroTimer = setInterval(() => showHero((state.heroIndex + 1) % FEATURED.length), 6000);
     }
 
     showHero(0);
@@ -503,9 +494,9 @@
         loader.classList.add('hidden');
         grid.innerHTML = '';
 
-        local.forEach((it) => grid.appendChild(makeSearchRow(it)));
+        local.forEach((it) => grid.appendChild(makeCard(it)));
 
-        remote.forEach((r) => grid.appendChild(makeSearchRow(r)));
+        remote.forEach((r, idx) => grid.appendChild(makeSearchCard(r, idx)));
 
         if (!grid.children.length) {
           empty.classList.remove('hidden');
@@ -572,46 +563,40 @@
       .filter(Boolean);
   }
 
-  function makeSearchRow(r) {
+  function makeSearchCard(r) {
     const div = document.createElement('div');
-    div.className = 'search-row';
+    div.className = 'search-card';
     div.setAttribute('role', 'button');
     div.setAttribute('tabindex', '0');
     div.setAttribute('aria-label', r.title);
 
-    const thumb = document.createElement('div');
-    thumb.className = 'search-thumb';
-    const initial = '<span class="initial">' + esc(r.title.charAt(0).toUpperCase()) + '</span>';
+    const itemForEmbed = Object.assign({}, r, {
+      poster: '',
+      seasons: r.type === 'tv' ? 1 : 0,
+      desc: r.type === 'tv' ? 'Nonton serial ini via SuperEmbed.' : 'Nonton film ini via SuperEmbed.',
+      backdrop: '',
+    });
+
+    let posterHtml;
     if (r.poster) {
-      const img = document.createElement('img');
-      img.loading = 'lazy';
-      img.src = posterUrl(r);
-      img.alt = r.title;
-      img.addEventListener('error', () => {
-        thumb.innerHTML = initial;
-      });
-      thumb.appendChild(img);
+      posterHtml =
+        '<img class="card-poster" loading="lazy" src="' + posterUrl(r) + '" alt="' + esc(r.title) + '" ' +
+        'onerror="this.classList.add(\'fallback\');this.removeAttribute(\'src\');' +
+        'this.dataset.initial=\'\';this.innerHTML=\'<span>' +
+        esc(r.title).replace(/'/g, '\\\'') + '</span>\';">';
     } else {
-      thumb.innerHTML = initial;
+      posterHtml =
+        '<div class="card-poster fallback" data-initial="' + esc(r.title.charAt(0).toUpperCase()) + '">' +
+        '<span>' + esc(r.title) + '</span></div>';
     }
 
-    const info = document.createElement('div');
-    info.className = 'search-row-info';
-    info.innerHTML =
-      '<div class="search-row-title">' + esc(r.title) + '</div>' +
-      '<div class="search-row-meta">' +
-      '<span class="match">' + (r.match || 80) + '% Cocok</span>' +
+    div.innerHTML =
+      posterHtml +
+      '<div class="card-info">' +
+      '<div class="card-title">' + esc(r.title) + '</div>' +
+      '<div class="card-sub"><span class="match">' + r.match + '% Cocok</span>' +
       (r.year ? '<span>' + esc(r.year) + '</span>' : '') +
-      '<span class="search-type-badge">' + (r.type === 'tv' ? 'Series' : 'Film') + '</span>' +
-      '</div>';
-
-    div.appendChild(thumb);
-    div.appendChild(info);
-
-    const itemForEmbed = Object.assign({}, r, {
-      seasons: r.type === 'tv' ? (r.seasons || 1) : 0,
-      desc: r.desc || (r.type === 'tv' ? 'Nonton serial ini via SuperEmbed.' : 'Nonton film ini via SuperEmbed.'),
-    });
+      '</div></div>';
 
     const open = () => openPlayer(itemForEmbed);
     div.addEventListener('click', open);
@@ -642,23 +627,10 @@
     initNav();
     bindModalEvents();
 
-    let heroPromise = Promise.resolve([]);
-    if (TMDB_API_KEY) {
-      heroPromise = tmdbFetch('trending/all/week', { page: 1 })
-        .then((j) =>
-          (j.results || [])
-            .filter((t) => t.media_type !== 'person')
-            .map((t) => tmdbToItem(t))
-            .filter((t) => t.id && t.title)
-            .slice(0, 6)
-        )
-        .catch(() => []);
-    }
-
-    Promise.all([fetchTMDCRows(), heroPromise]).then(([rows, heroItems]) => {
+    fetchTMDCRows().then((rows) => {
       if (rows.length) CURRENT_CATALOG = rows.concat(CATALOG);
       renderRows();
-      initHero(heroItems.length ? heroItems : null);
+      initHero();
       setFilter(state.filter);
     });
   }
