@@ -300,7 +300,7 @@
                 const token = loginData.token;
 
                 // Step 2: Search Subtitle
-                let searchUrl = `${CORS_PROXY}https://api.opensubtitles.com/api/v1/subtitles?imdb_id=${imdbId}&languages=id`;
+                let searchUrl = `${CORS_PROXY}https://api.opensubtitles.com/api/v1/subtitles?imdb_id=${imdbId}`;
                 if (season && episode) searchUrl += `&season_number=${season}&episode_number=${episode}`;
                 
                 const searchRes = await fetch(searchUrl, {
