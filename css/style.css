@@ -528,24 +528,92 @@ body {
 }
 
 .search-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   padding: 10px 4%;
 }
 
-.search-card {
-  cursor: pointer;
-  border-radius: 4px;
-  overflow: hidden;
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  border-radius: 6px;
   background: var(--bg-card);
-  transition: transform 0.2s, box-shadow 0.2s;
-  position: relative;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
 }
 
-.search-card:hover {
-  transform: scale(1.04);
-  box-shadow: 0 10px 24px var(--shadow);
+.search-row:hover,
+.search-row:focus-visible {
+  background: #26262b;
+  transform: translateX(4px);
+  outline: none;
+}
+
+.search-thumb {
+  flex: 0 0 auto;
+  width: 48px;
+  height: 72px;
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, #34343a, #17171a);
+}
+
+.search-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.search-thumb .initial {
+  font-family: 'Lilita One', sans-serif;
+  font-size: 24px;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.search-row-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.search-row-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.search-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 5px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.search-row-meta .match {
+  color: #46d369;
+  font-weight: 700;
+}
+
+.search-type-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ddd;
 }
 
 .loader {
@@ -749,6 +817,21 @@ body {
 .modal-player {
   position: absolute;
   inset: 0;
+}
+
+.player-hint {
+  flex-shrink: 0;
+  margin: 8px 0 0;
+  padding: 0 28px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+  text-align: center;
+}
+
+.player-hint b {
+  color: #ddd;
+  font-weight: 700;
 }
 
 .modal-player iframe {

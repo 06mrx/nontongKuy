@@ -1,8 +1,7 @@
 /* =========================================================
-   NontongYuk — Katalog konten (embedding via Vidsrc player)
-   Embed player: https://vidsrcme.ru/embed/movie/{id}
-                 https://vidsrcme.ru/embed/tv/{id}/{s}/{e}
-   (player custom dengan subtitle/CC bawaan, tanpa login)
+   NontongYuk — Katalog konten (embedding via MultiEmbed / 2Embed)
+   Embed player: https://multiembed.mov/?video_id={id}
+                 https://www.2embed.cc/embed/{id}
    Poster diambil dari CDN TMDB (image.tmdb.org).
    ========================================================= */
 
@@ -158,32 +157,23 @@ function allItems() {
 }
 
 /** Daftar sumber player. Kunci dipakai di <select id="sourceSelect">. */
-const EMBED_SOURCES = ['vidsrc', 'multiembed', 'embed2', 'vsembed'];
+const EMBED_SOURCES = ['embed2', 'multiembed'];
 
 /** Membangun URL player sesuai sumber. 'source' salah satu kunci EMBED_SOURCES. */
 function embedUrl(item, season, episode, source) {
-  source = source || 'vidsrc';
+  source = source || 'embed2';
   const id = item.id;
   const isTv = item.type === 'tv';
   const s = season || 1;
   const e = episode || 1;
-
-  if (source === 'multiembed') {
-    const idPrefix = item.imdb ? '' : '&tmdb=1';
-    let base = 'https://multiembed.mov/?video_id=' + id + idPrefix;
-    if (isTv) base += '&s=' + s + '&e=' + e;
-    return base;
-  }
 
   if (source === 'embed2') {
     if (isTv) return 'https://www.2embed.cc/embedtv/' + id + '&s=' + s + '&e=' + e;
     return 'https://www.2embed.cc/embed/' + id;
   }
 
-  const HOST =
-    source === 'vsembed'
-      ? 'https://vsembed.ru/embed/'
-      : 'https://vidsrcme.ru/embed/';
-  if (isTv) return HOST + 'tv/' + id + '/' + s + '/' + e;
-  return HOST + 'movie/' + id;
+  const idPrefix = item.imdb ? '' : '&tmdb=1';
+  let base = 'https://multiembed.mov/?video_id=' + id + idPrefix;
+  if (isTv) base += '&s=' + s + '&e=' + e;
+  return base;
 }
