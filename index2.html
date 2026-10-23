@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TMDB Player - Iframe + OpenSubtitles Overlay</title>
+    <style>
+        /* Base & Layout */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: system-ui, -apple-system, sans-serif; max-width: 960px; margin: 20px auto; padding: 0 15px; background: #111; color: #eee; }
+        h1 { font-size: 1.4rem; margin-bottom: 20px; }
+        
+        /* Search & Results */
+        .search-box { display: flex; gap: 10px; margin-bottom: 20px; }
+        input, select { flex: 1; padding: 10px; font-size: 15px; background: #222; color: #eee; border: 1px solid #444; border-radius: 6px; }
+        button { padding: 10px 18px; font-size: 15px; cursor: pointer; background: #e50914; color: #fff; border: 0; border-radius: 6px; transition: 0.2s; }
+        button:hover { background: #f6121d; }
+        button.secondary { background: #333; }
+        button.secondary:hover { background: #444; }
+        #result { margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 8px; }
+        #result button { background: #2a2a2a; border: 1px solid #444; }
+
+        /* VIDEO WRAPPER (PENTING: Ini yang di-fullscreen-kan) */
+        #video-wrapper {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #333;
+            margin-bottom: 15px;
+        }
+
+        #video-wrapper iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+
+        /* SUBTITLE OVERLAY */
+        #subtitle-overlay {
+            position: absolute;
+            bottom: 12%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 85%;
+            text-align: center;
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #fff;
+            text-shadow: -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000, 0 4px 8px rgba(0,0,0,0.9);
+            pointer-events: none; /* Klik tembus ke iframe */
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 10;
+            line-height: 1.4;
+        }
+        #subtitle-overlay.active { opacity: 1; }
+
+        /* CONTROLS */
+        .controls { display: flex; gap: 10px; align-items: center; margin: 12px 0; flex-wrap: wrap; background: #1a1a1a; padding: 12px; border-radius: 8px; border: 1px solid #333; }
+        .controls label { font-size: 13px; color: #aaa; }
+        .sync-group { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+        .sync-group input { width: 60px; padding: 6px; text-align: center; font-size: 13px; }
+
+        #info { margin-top: 10px; color: #aaa; font-size: 13px; line-height: 1.5; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; background: #333; margin-left: 6px; vertical-align: middle; }
+
+        /* FULLSCREEN MODE KHUSUS */
+        #video-wrapper:fullscreen {
+            width: 100vw; height: 100vh; border-radius: 0; border: none;
+            display: flex; align-items: center; justify-content: center; background: #000;
+        }
+        #video-wrapper:fullscreen iframe { width: 100%; height: 100%; object-fit: contain; }
+        #video-wrapper:fullscreen #subtitle-overlay {
+            bottom: 15%; font-size: 2rem; width: 80%; /* Lebih besar & tinggi saat fullscreen */
+        }
+    </style>
+</head>
+<body>
+    <h1>TMDB Player <span class="badge">Iframe + OpenSubtitles</span></h1>
+
+    <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Cari film atau serial..." onkeydown="if(event.key==='Enter')searchTMDB()">
+        <button onclick="searchTMDB()">Cari</button>
+    </div>
+
+    <div id="result"></div>
+
+    <div class="controls" id="tvControls" style="display:none;">
+        <label>Season:</label>
+        <select id="seasonSelect" onchange="onSeasonChange()"></select>
+        <label>Episode:</label>
+        <select id="episodeSelect" onchange="onEpisodeChange()"></select>
+    </div>
+
+    <div class="controls" id="providerControls" style="display:none;">
+        <label>Provider:</label>
+        <select id="providerSelect" onchange="reloadPlayer()">
+            <option value="2embed">2Embed</option>
+            <option value="multiembed">MultiEmbed</option>
+        </select>
+    </div>
+
+    <!-- WRAPPER: Iframe + Subtitle Overlay -->
+    <div id="video-wrapper">
+        <iframe id="my-iframe" src="" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe>
+        <div id="subtitle-overlay"><span id="subtitle-text"></span></div>
+    </div>
+
+    <!-- Kontrol Player & Subtitle -->
+    <div class="controls">
+        <button class="secondary" onclick="toggleWrapperFullscreen()">⛶ Fullscreen Player</button>
+        <button id="btnSub" class="secondary" onclick="toggleSubtitleTimer()" disabled>▶️ Mulai Subtitle</button>
+        
+        <div class="sync-group">
+            <label>Delay (detik):</label>
+            <input type="number" id="syncOffset" value="0" step="0.5">
+            <button class="secondary" style="padding: 6px 10px; font-size: 12px;" onclick="applySync()">OK</button>
+        </div>
+    </div>
+
+    <div id="info">Masukkan judul di atas untuk mulai. Subtitle akan dimuat otomatis dari OpenSubtitles.</div>
+
+    <script>
+        // ================= KONFIGURASI =================
+        const TMDB_API_KEY = '88f3f317200d490c36bacc3dfae8cc62';
+        const TMDB_BASE = 'https://api.themoviedb.org/3';
+        
+        // --- ISI DENGAN DATA OPENSUBTITLES KAMU ---
+        const OS_API_KEY = 'ON7PekFFZ89mauCM4M3MZ8e2Q5BDgSwo';
+        const OS_USERNAME = 'mrx0611'; // Wajib untuk download
+        const OS_PASSWORD = 'Hackermrx';  // Wajib untuk download
+        const OS_USER_AGENT = 'TempPlayer v1.0';      // Bebas, tapi wajib ada
+        
+        // Proxy CORS (Opsional, tapi sering dibutuhkan jika fetch dari browser langsung ke OpenSubtitles diblokir)
+        // Jika error CORS, gunakan: 'https://corsproxy.io/?' + encodeURIComponent(url)
+        const CORS_PROXY = ''; 
+
+        const PROVIDERS = {
+            '2embed': {
+                movie: (id) => `https://www.2embed.cc/embed/${id}`,
+                tv: (id, s, e) => `https://www.2embed.cc/embedtv/${id}&s=${s}&e=${e}`
+            },
+            'multiembed': {
+                movie: (id) => `https://multiembed.mov/?video_id=${id}&tmdb=1`,
+                tv: (id, s, e) => `https://multiembed.mov/?video_id=${id}&tmdb=1&s=${s}&e=${e}`
+            }
+        };
+
+        // ================= STATE =================
+        let current = null;
+        let tvSeasons = [];
+        let currentProvider = '2embed';
+        let subtitles = [];
+        let subtitleInterval = null;
+        let isSubtitleRunning = false;
+        let playbackStartTime = 0; // Waktu saat tombol "Mulai" ditekan
+
+        // ================= TMDB SEARCH =================
+        async function searchTMDB() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) return alert('Masukkan judul!');
+            const url = `${TMDB_BASE}/search/multi?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=id-ID`;
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                displayResults(data.results);
+            } catch (err) { alert('Gagal mencari: ' + err.message); }
+        }
+
+        function displayResults(results) {
+            const container = document.getElementById('result');
+            container.innerHTML = '';
+            const filtered = results.filter(item => item.media_type === 'movie' || item.media_type === 'tv').slice(0, 6);
+            if (filtered.length === 0) { container.innerHTML = '<p style="color:#888">Tidak ada hasil.</p>'; return; }
+            
+            filtered.forEach(item => {
+                const title = item.title || item.name;
+                const year = (item.release_date || item.first_air_date || '').slice(0, 4);
+                const typeLabel = item.media_type === 'movie' ? 'Film' : 'Serial';
+                const btn = document.createElement('button');
+                btn.textContent = `${title} (${year}) [${typeLabel}]`;
+                btn.onclick = () => selectMedia(item.media_type, item.id, title);
+                container.appendChild(btn);
+            });
+        }
+
+        async function selectMedia(type, id, title) {
+            current = { type, id, title, season: 1, episode: 1 };
+            document.getElementById('providerControls').style.display = 'flex';
+            stopSubtitle(); // Reset subtitle sebelumnya
+
+            if (type === 'tv') {
+                await loadSeasons(id);
+                document.getElementById('tvControls').style.display = 'flex';
+            } else {
+                document.getElementById('tvControls').style.display = 'none';
+                tvSeasons = [];
+            }
+            reloadPlayer();
+        }
+
+        async function loadSeasons(tvId) {
+            const res = await fetch(`${TMDB_BASE}/tv/${tvId}?api_key=${TMDB_API_KEY}&language=id-ID`);
+            const data = await res.json();
+            tvSeasons = data.seasons || [];
+            const seasonSelect = document.getElementById('seasonSelect');
+            seasonSelect.innerHTML = '';
+            tvSeasons.forEach(s => {
+                if (s.season_number === 0) return;
+                const opt = document.createElement('option');
+                opt.value = s.season_number;
+                opt.textContent = `Season ${s.season_number} (${s.episode_count} eps)`;
+                seasonSelect.appendChild(opt);
+            });
+            if (tvSeasons.length > 0) {
+                const first = tvSeasons.find(s => s.season_number !== 0) || tvSeasons[0];
+                seasonSelect.value = first.season_number;
+                current.season = first.season_number;
+                await loadEpisodes(tvId, current.season);
+            }
+        }
+
+        async function loadEpisodes(tvId, seasonNumber) {
+            const res = await fetch(`${TMDB_BASE}/tv/${tvId}/season/${seasonNumber}?api_key=${TMDB_API_KEY}&language=id-ID`);
+            const data = await res.json();
+            const episodeSelect = document.getElementById('episodeSelect');
+            episodeSelect.innerHTML = '';
+            (data.episodes || []).forEach(ep => {
+                const opt = document.createElement('option');
+                opt.value = ep.episode_number;
+                opt.textContent = `E${ep.episode_number} - ${ep.name || ''}`;
+                episodeSelect.appendChild(opt);
+            });
+            if (data.episodes?.length > 0) { episodeSelect.value = 1; current.episode = 1; }
+        }
+
+        async function onSeasonChange() {
+            current.season = parseInt(document.getElementById('seasonSelect').value);
+            await loadEpisodes(current.id, current.season);
+            current.episode = 1;
+            stopSubtitle();
+            reloadPlayer();
+        }
+
+        function onEpisodeChange() {
+            current.episode = parseInt(document.getElementById('episodeSelect').value);
+            stopSubtitle();
+            reloadPlayer();
+        }
+
+        // ================= PLAYER & SUBTITLE LOGIC =================
+        async function reloadPlayer() {
+            if (!current) return;
+            currentProvider = document.getElementById('providerSelect').value;
+            const provider = PROVIDERS[currentProvider];
+            const url = current.type === 'movie' 
+                ? provider.movie(current.id) 
+                : provider.tv(current.id, current.season, current.episode);
+
+            document.getElementById('my-iframe').src = url;
+            document.getElementById('btnSub').disabled = true;
+            document.getElementById('btnSub').textContent = '⏳ Memuat Subtitle...';
+            
+            const label = current.type === 'movie' ? current.title : `${current.title} - S${current.season}E${current.episode}`;
+            document.getElementById('info').textContent = `Memutar: ${label} via ${currentProvider}. Tunggu subtitle dimuat.`;
+
+            // 1. Ambil IMDB ID dari TMDB (OpenSubtitles lebih akurat pakai IMDB ID)
+            const tmdbRes = await fetch(`${TMDB_BASE}/${current.type}/${current.id}?api_key=${TMDB_API_KEY}&append_to_response=external_ids`);
+            const tmdbData = await tmdbRes.json();
+            const imdbId = tmdbData.external_ids?.imdb_id;
+
+            // 2. Ambil Subtitle dari OpenSubtitles
+            if (imdbId) {
+                await fetchOpenSubtitles(imdbId, current.type === 'tv' ? current.season : null, current.type === 'tv' ? current.episode : null);
+            } else {
+                document.getElementById('info').textContent += ' (Gagal mendapatkan IMDB ID untuk subtitle)';
+                document.getElementById('btnSub').textContent = '❌ Gagal Muat Sub';
+            }
+        }
+
+        async function fetchOpenSubtitles(imdbId, season, episode) {
+            try {
+                // Step 1: Login untuk dapat Token
+                const loginUrl = `${CORS_PROXY}https://api.opensubtitles.com/api/v1/login`;
+                const loginRes = await fetch(loginUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Api-Key': OS_API_KEY,
+                        'User-Agent': OS_USER_AGENT,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username: OS_USERNAME, password: OS_PASSWORD })
+                });
+                const loginData = await loginRes.json();
+                if (!loginData.token) throw new Error('Gagal login OpenSubtitles. Cek Username/Password/API Key.');
+                const token = loginData.token;
+
+                // Step 2: Search Subtitle
+                let searchUrl = `${CORS_PROXY}https://api.opensubtitles.com/api/v1/subtitles?imdb_id=${imdbId}&languages=id`;
+                if (season && episode) searchUrl += `&season_number=${season}&episode_number=${episode}`;
+                
+                const searchRes = await fetch(searchUrl, {
+                    headers: { 'Authorization': `Bearer ${token}`, 'User-Agent': OS_USER_AGENT }
+                });
+                const searchData = await searchRes.json();
+                
+                if (!searchData.data || searchData.data.length === 0) {
+                    document.getElementById('btnSub').textContent = '❌ Sub ID Tidak Ditemukan';
+                    document.getElementById('info').textContent += ' | Tidak ada subtitle Bahasa Indonesia di OpenSubtitles.';
+                    return;
+                }
+
+                // Ambil file ID dari hasil pertama
+                const fileId = searchData.data[0].attributes.files[0].file_id;
+
+                // Step 3: Download Link
+                const downloadRes = await fetch(`${CORS_PROXY}https://api.opensubtitles.com/api/v1/download`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'User-Agent': OS_USER_AGENT,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ file_id: fileId })
+                });
+                const downloadData = await downloadRes.json();
+                const srtUrl = downloadData.link;
+
+                // Step 4: Fetch file .srt dan parse
+                const srtRes = await fetch(`${CORS_PROXY}${srtUrl}`);
+                const srtText = await srtRes.text();
+                subtitles = parseSRT(srtText);
+
+                document.getElementById('btnSub').disabled = false;
+                document.getElementById('btnSub').textContent = '▶️ Mulai Subtitle';
+                document.getElementById('info').textContent += ` | ✅ Subtitle berhasil dimuat (${subtitles.length} baris). Tekan "Mulai" saat film mulai.`;
+
+            } catch (err) {
+                console.error(err);
+                document.getElementById('btnSub').textContent = '❌ Error Subtitle';
+                document.getElementById('info').textContent += ` | Error: ${err.message}. (Cek CORS Proxy atau kredensial OS)`;
+            }
+        }
+
+        // ================= SRT PARSER =================
+        function parseSRT(srtText) {
+            const subs = [];
+            // Bersihkan BOM jika ada, lalu split berdasarkan blok kosong
+            const blocks = srtText.replace(/^\uFEFF/, '').trim().split(/\n\s*\n/);
+            for (const block of blocks) {
+                const lines = block.trim().split('\n');
+                if (lines.length >= 3) {
+                    const timeLine = lines[1];
+                    const text = lines.slice(2).join('<br>').replace(/<[^>]+>/g, ''); // Hapus tag HTML aneh dari SRT
+                    const [startStr, endStr] = timeLine.split(' --> ');
+                    subs.push({
+                        start: timeToSeconds(startStr),
+                        end: timeToSeconds(endStr),
+                        text: text
+                    });
+                }
+            }
+            return subs;
+        }
+
+        function timeToSeconds(timeStr) {
+            // Format SRT: 00:00:20,000 -> ganti koma dengan titik agar bisa di-parse float
+            const cleanTime = timeStr.trim().replace(',', '.');
+            const parts = cleanTime.split(':');
+            return parseFloat(parts[0]) * 3600 + parseFloat(parts[1]) * 60 + parseFloat(parts[2]);
+        }
+
+        // ================= SUBTITLE TIMER & SYNC =================
+        function toggleSubtitleTimer() {
+            if (isSubtitleRunning) {
+                stopSubtitle();
+            } else {
+                startSubtitle();
+            }
+        }
+
+        function startSubtitle() {
+            isSubtitleRunning = true;
+            playbackStartTime = Date.now();
+            document.getElementById('btnSub').textContent = '⏸️ Jeda Subtitle';
+            document.getElementById('btnSub').style.background = '#e50914';
+            
+            subtitleInterval = setInterval(() => {
+                const elapsed = (Date.now() - playbackStartTime) / 1000; // detik
+                const offset = parseFloat(document.getElementById('syncOffset').value) || 0;
+                const currentTime = elapsed + offset;
+
+                const activeSub = subtitles.find(sub => currentTime >= sub.start && currentTime <= sub.end);
+                const overlay = document.getElementById('subtitle-overlay');
+                const textEl = document.getElementById('subtitle-text');
+
+                if (activeSub) {
+                    textEl.innerHTML = activeSub.text;
+                    overlay.classList.add('active');
+                } else {
+                    overlay.classList.remove('active');
+                }
+            }, 100);
+        }
+
+        function stopSubtitle() {
+            isSubtitleRunning = false;
+            clearInterval(subtitleInterval);
+            document.getElementById('subtitle-overlay').classList.remove('active');
+            document.getElementById('btnSub').textContent = '▶️ Mulai Subtitle';
+            document.getElementById('btnSub').style.background = '#333';
+        }
+
+        function applySync() {
+            // Jika sedang berjalan, restart timer agar offset langsung terasa
+            if (isSubtitleRunning) {
+                stopSubtitle();
+                startSubtitle();
+            }
+            const btn = event.target;
+            const original = btn.textContent;
+            btn.textContent = '✓';
+            setTimeout(() => btn.textContent = original, 800);
+        }
+
+        // ================= FULLSCREEN WRAPPER =================
+        function toggleWrapperFullscreen() {
+            const wrapper = document.getElementById('video-wrapper');
+            if (!document.fullscreenElement) {
+                wrapper.requestFullscreen().catch(err => alert(`Gagal fullscreen: ${err.message}`));
+            } else {
+                document.exitFullscreen();
+            }
+        }
+    </script>
+</body>
+</html>
